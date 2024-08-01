@@ -1,6 +1,8 @@
+import datetime
+from typing import List
 import uuid
 
-from pydantic import EmailStr
+from pydantic import AnyUrl, EmailStr
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -110,3 +112,84 @@ class TokenPayload(SQLModel):
 class NewPassword(SQLModel):
     token: str
     new_password: str = Field(min_length=8, max_length=40)
+
+# class ListingBase(SQLModel):
+#     title: str
+#     description: str
+#     price: float
+#     category: str
+#     location: str
+#     images: List[AnyUrl]  # List of image URLs
+
+# class ListingCreate(ListingBase):
+#     pass
+
+# class ListingUpdate(SQLModel):
+#     title: Optional[str] = None
+#     description: Optional[str] = None
+#     price: Optional[float] = None
+#     category: Optional[str] = None
+#     location: Optional[str] = None
+#     images: Optional[List[AnyUrl]] = None
+
+# class Listing(ListingBase, table=True):
+#     id: Optional[int] = Field(default=None, primary_key=True)
+    
+class ListingBase(SQLModel):
+    title: str
+    description: str
+    price: float
+    category: str
+    location: str
+    images: List[AnyUrl]  # List of image URLs
+
+class ListingCreate(ListingBase):
+    pass
+
+class ListingUpdate(SQLModel):
+    title: Optional[str] = None
+    description: Optional[str] = None
+    price: Optional[float] = None
+    category: Optional[str] = None
+    location: Optional[str] = None
+    images: Optional[List[AnyUrl]] = None
+
+class Listing(ListingBase, table=True):
+    id: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4, primary_key=True)
+    owner_id: uuid.UUID = Field(foreign_key="user.id")
+
+class ListingPublic(ListingBase):
+    id: uuid.UUID
+    owner_id: uuid.UUID
+
+class ListingsPublic(SQLModel):
+    data: List[ListingPublic]
+    count: int
+
+class TransactionBase(SQLModel):
+    listing_id: uuid.UUID
+    renter_id: uuid.UUID
+    lender_id: uuid.UUID
+    start_date: datetime
+    end_date: datetime
+    total_price: float
+    status: str  # e.g., "pending", "approved", "completed", "canceled"
+
+class TransactionCreate(TransactionBase):
+    pass
+
+class TransactionUpdate(SQLModel):
+    status: str = None
+    total_price: Optional[float] = None
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+
+class Transaction(TransactionBase, table=True):
+    id: Optional[uuid.UUID] = Field(default_factory=uuid.uuid4, primary_key=True)
+
+class TransactionPublic(TransactionBase):
+    id: uuid.UUID
+
+class TransactionsPublic(SQLModel):
+    data: list[TransactionPublic]
+    count: int
