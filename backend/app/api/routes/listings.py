@@ -1,11 +1,9 @@
 import uuid
-from typing import Any
-from fastapi import APIRouter, HTTPException, Depends
+from typing import Any, List
+from fastapi import APIRouter, HTTPException
 from sqlmodel import func, select
-from sqlalchemy.orm import Session
 from app.api.deps import CurrentUser, SessionDep
-from app.models import Listing, ListingCreate, ListingPublic, ListingsPublic, ListingUpdate, Message
-from app.crud import crud_listing
+from app.models import Listing, ListingCreate, ListingPublic, ListingsPublic, ListingUpdate, Message, ListingSearch
 
 router = APIRouter()
 
@@ -42,24 +40,28 @@ def read_listings(
 @router.post("/", response_model=ListingPublic)
 def create_listing(
     listing: ListingCreate,
-    session: SessionDep = Depends(),
-    current_user: CurrentUser = Depends(),
+    session: SessionDep = SessionDep,
+    current_user: CurrentUser = CurrentUser,
 ) -> Any:
     """
     Create new listing.
     """
-    return crud_listing.create_listing(session, listing, current_user.id)
+    new_listing = Listing.model_validate(listing, update={"owner_id": current_user.id})
+    session.add(new_listing)
+    session.commit()
+    session.refresh(new_listing)
+    return new_listing
 
 @router.get("/{listing_id}", response_model=ListingPublic)
 def read_listing(
     listing_id: uuid.UUID,
-    session: SessionDep = Depends(),
-    current_user: CurrentUser = Depends(),
+    session: SessionDep = SessionDep,
+    current_user: CurrentUser = CurrentUser,
 ) -> Any:
     """
     Get a listing by ID.
     """
-    db_listing = crud_listing.get_listing(session, listing_id)
+    db_listing = session.get(Listing, listing_id)
     if db_listing is None:
         raise HTTPException(status_code=404, detail="Listing not found")
     if not current_user.is_superuser and db_listing.owner_id != current_user.id:
@@ -70,31 +72,63 @@ def read_listing(
 def update_listing(
     listing_id: uuid.UUID,
     listing: ListingUpdate,
-    session: SessionDep = Depends(),
-    current_user: CurrentUser = Depends(),
+    session: SessionDep = SessionDep,
+    current_user: CurrentUser = CurrentUser,
 ) -> Any:
     """
     Update a listing by ID.
     """
-    db_listing = crud_listing.get_listing(session, listing_id)
+    db_listing = session.get(Listing, listing_id)
     if db_listing is None:
         raise HTTPException(status_code=404, detail="Listing not found")
     if not current_user.is_superuser and db_listing.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    return crud_listing.update_listing(session, listing_id, listing)
+    updated = listing.model_dump(exclude_unset=True)
+    db_listing.sqlmodel_update(updated)
+    session.add(db_listing)
+    session.commit()
+    session.refresh(db_listing)
+    return db_listing    
 
 @router.delete("/{listing_id}", response_model=ListingPublic)
 def delete_listing(
     listing_id: uuid.UUID,
-    session: SessionDep = Depends(),
-    current_user: CurrentUser = Depends(),
+    session: SessionDep = SessionDep,
+    current_user: CurrentUser = CurrentUser,
 ) -> Any:
     """
     Delete a listing by ID.
     """
-    db_listing = crud_listing.get_listing(session, listing_id)
+    db_listing = session.get(Listing, listing_id)
     if db_listing is None:
         raise HTTPException(status_code=404, detail="Listing not found")
     if not current_user.is_superuser and db_listing.owner_id != current_user.id:
         raise HTTPException(status_code=403, detail="Not enough permissions")
-    return crud_listing.delete_listing(session, listing_id)
+    session.delete(db_listing)
+    session.commit()
+    return Message(message="Listing deleted successfully")
+
+@router.post("/search", response_model=List[ListingPublic])
+def search_listings(
+    search_query: ListingSearch,
+    db: SessionDep = SessionDep
+) -> List[ListingPublic]:
+    query = select(Listing)
+
+    if search_query.title:
+        query = query.where(Listing.title.contains(search_query.title))
+    if search_query.category:
+        query = query.where(Listing.category == search_query.category)
+    if search_query.location:
+        query = query.where(Listing.location == search_query.location)
+    if search_query.min_price is not None:
+        query = query.where(Listing.price >= search_query.min_price)
+    if search_query.max_price is not None:
+        query = query.where(Listing.price <= search_query.max_price)
+
+    listings = db.exec(query).all()
+
+    if not listings:
+        raise HTTPException(status_code=404, detail="No listings found")
+
+    return listings

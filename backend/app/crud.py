@@ -4,7 +4,7 @@ from typing import Any, List
 from sqlmodel import Session, select
 
 from app.core.security import get_password_hash, verify_password
-from app.models import Item, ItemCreate, User, UserCreate, UserUpdate, Listing, ListingCreate, ListingUpdate
+from app.models import Item, ItemCreate, Transaction, TransactionCreate, TransactionUpdate, User, UserCreate, UserUpdate, Listing, ListingCreate, ListingUpdate
 
 
 def create_user(*, session: Session, user_create: UserCreate) -> User:
@@ -53,40 +53,6 @@ def create_item(*, session: Session, item_in: ItemCreate, owner_id: uuid.UUID) -
     session.refresh(db_item)
     return db_item
 
-# def get_listing(db: Session, listing_id: int) -> Listing:
-#     return db.get(Listing, listing_id)
-
-# def get_listings(db: Session, skip: int = 0, limit: int = 10) -> List[Listing]:
-#     listings = db.exec(select(Listing).offset(skip).limit(limit)).all()
-#     return listings
-
-# def create_listing(db: Session, listing: ListingCreate) -> Listing:
-#     db_listing = Listing.from_orm(listing)
-#     db.add(db_listing)
-#     db.commit()
-#     db.refresh(db_listing)
-#     return db_listing
-
-# def update_listing(db: Session, listing_id: int, listing: ListingUpdate) -> Listing:
-#     db_listing = db.get(Listing, listing_id)
-#     if not db_listing:
-#         return None
-#     for key, value in listing.dict(exclude_unset=True).items():
-#         setattr(db_listing, key, value)
-#     db.add(db_listing)
-#     db.commit()
-#     db.refresh(db_listing)
-#     return db_listing
-
-# def delete_listing(db: Session, listing_id: int) -> Listing:
-#     db_listing = db.get(Listing, listing_id)
-#     if not db_listing:
-#         return None
-#     db.delete(db_listing)
-#     db.commit()
-#     return db_listing
-
-
 def get_listing(db: Session, listing_id: uuid.UUID) -> Listing:
     return db.get(Listing, listing_id)
 
@@ -123,7 +89,7 @@ def delete_listing(db: Session, listing_id: uuid.UUID) -> Listing:
     db.commit()
     return db_listing
 
-def get_transaction(db: Session, transaction_id: uuid.UUID) -> Optional[Transaction]:
+def get_transaction(db: Session, transaction_id: uuid.UUID) -> Transaction:
     return db.get(Transaction, transaction_id)
 
 def get_transactions(db: Session, user_id: uuid.UUID, skip: int = 0, limit: int = 10) -> List[Transaction]:
@@ -142,7 +108,7 @@ def create_transaction(db: Session, transaction: TransactionCreate) -> Transacti
     db.refresh(db_transaction)
     return db_transaction
 
-def update_transaction(db: Session, transaction_id: uuid.UUID, transaction: TransactionUpdate) -> Optional[Transaction]:
+def update_transaction(db: Session, transaction_id: uuid.UUID, transaction: TransactionUpdate) -> Transaction:
     db_transaction = db.get(Transaction, transaction_id)
     if not db_transaction:
         return None
@@ -153,7 +119,7 @@ def update_transaction(db: Session, transaction_id: uuid.UUID, transaction: Tran
     db.refresh(db_transaction)
     return db_transaction
 
-def delete_transaction(db: Session, transaction_id: uuid.UUID) -> Optional[Transaction]:
+def delete_transaction(db: Session, transaction_id: uuid.UUID) -> Transaction:
     db_transaction = db.get(Transaction, transaction_id)
     if not db_transaction:
         return None
