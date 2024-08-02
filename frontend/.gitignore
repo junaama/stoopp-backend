@@ -27,3 +27,6 @@ openapi.json
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+.next
+next-env.d.ts
+dist
